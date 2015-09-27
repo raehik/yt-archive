@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+#
+# Archive a YouTube channel, saving as much data & metadata as possible.
+#
+
+# id of channel to download
+channel_id="UCkf_rgLzKlZv2_V6c3mNN2A"
+
+# directory to store videos in
+video_dir="nitori-archive"
+
+# youtube-dl default is 'bestvideo+bestaudio/best', but it could change later,
+# so define our wanted format here
+av_format="bestvideo+bestaudio/best"
+
+
+# form the channel URL
+channel_url="https://www.youtube.com/channel/$channel_id"
+
+if [[ ! -e "$video_dir" ]]; then
+    mkdir "$video_dir"
+fi
+
+youtube-dl -i \
+           --download-archive "$dl_archive_file" \
+           -o "$video_dir/%(upload_date)s-%(title)s-%(id)s.%(ext)s" \
+           --playlist-reverse \
+           -f "$av_format"
+           --write-description \
+           --write-all-thumbnails \
+           --all-subs \
+           --write-info-json \
+           --write-annotations \
+           "$channel_url" \
+           | tee "$(date +%Y-%m-%d-%s)-youtube-dl.log"
