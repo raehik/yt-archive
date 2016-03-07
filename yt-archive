@@ -29,6 +29,9 @@ if [[ $# != 1 ]]; then
     _error "error: expected exactly 1 argument" 1
 fi
 
+# speed limit
+dl_speed_limit="100K"
+
 # id of channel to download
 # Nitori Kappashiro (old): UCkf_rgLzKlZv2_V6c3mNN2A
 # Nitori Kappashiro (2016-03-07): UCg0YpckJRt9YmBfiQoF5VRA
@@ -56,6 +59,7 @@ if [[ ! -e "$video_dir" ]]; then
 fi
 
 youtube-dl -i \
+           --rate-limit $dl_speed_limit \
            --download-archive "$dl_archive_file" \
            -o "$video_dir/%(upload_date)s-%(title)s-%(id)s.%(ext)s" \
            --playlist-reverse \
