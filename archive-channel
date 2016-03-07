@@ -3,33 +3,67 @@
 # Archive a YouTube channel, saving as much data & metadata as possible.
 #
 
+_msg() {
+    echo "$1"
+}
+
+_log() {
+    if [[ $VERBOSE ]]; then
+        _msg "$1"
+    fi
+}
+
+_error() {
+    _msg "$1"
+    if [[ $2 ]]; then
+        exit $2
+    fi
+}
+
+_init_archive() {
+    _msg "initialising new channel archive"
+    mkdir "$1" "$2"
+}
+
+if [[ $# != 1 ]]; then
+    _error "error: expected exactly 1 argument" 1
+fi
+
 # id of channel to download
-channel_id="UCkf_rgLzKlZv2_V6c3mNN2A"
+# Nitori Kappashiro (old): UCkf_rgLzKlZv2_V6c3mNN2A
+# Nitori Kappashiro (2016-03-07): UCg0YpckJRt9YmBfiQoF5VRA
+# GiIvaSunner (GilvaSunner parody account): UCUWqr4gShUpMjdG9T99j-PQ
+channel_id="$1"
 
 # directory to store videos in
-video_dir="nitori-archive"
+video_dir="$channel_id"
+
+# directory to store log(s) in
+log_dir="$video_dir/logs"
+
+dl_archive_file="$video_dir/.yt-dl-archive"
+log_file="$log_dir/$(date +%F_%T)-youtube-dl.log"
 
 # youtube-dl default is 'bestvideo+bestaudio/best', but it could change later,
-# so define our wanted format here
+# so we define our wanted format
 av_format="bestvideo+bestaudio/best"
-
 
 # form the channel URL
 channel_url="https://www.youtube.com/channel/$channel_id"
 
 if [[ ! -e "$video_dir" ]]; then
-    mkdir "$video_dir"
+    _init_archive "$video_dir" "$log_dir"
 fi
 
 youtube-dl -i \
            --download-archive "$dl_archive_file" \
            -o "$video_dir/%(upload_date)s-%(title)s-%(id)s.%(ext)s" \
            --playlist-reverse \
-           -f "$av_format"
+           -f "$av_format" \
            --write-description \
            --write-all-thumbnails \
            --all-subs \
            --write-info-json \
            --write-annotations \
            "$channel_url" \
-           | tee "$(date +%Y-%m-%d-%s)-youtube-dl.log"
+           | tee "$log_file"
