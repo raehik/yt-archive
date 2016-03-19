@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 #
-# Archive a YouTube channel, saving as much data & metadata as possible.
+# Archive a YouTube channel/user, saving as much data & metadata as possible.
 #
+
+VERBOSE=true
 
 _msg() {
     echo "$1"
@@ -25,6 +27,17 @@ _init_archive() {
     mkdir "$1" "$2"
 }
 
+while getopts ":cuph" opt; do
+    case $opt in
+        c) yt_type="channel" ;;
+        u) yt_type="user" ;;
+        p) yt_type="playlist" ;;
+        h) echo "TODO: usage" ; exit 0 ;;
+        *) _error "unknown option -$OPTARG" 1 ;;
+    esac
+done
+shift $((OPTIND-1))
+
 if [[ $# != 1 ]]; then
     _error "error: expected exactly 1 argument" 1
 fi
@@ -32,42 +45,60 @@ fi
 # speed limit
 dl_speed_limit="100K"
 
-# id of channel to download
+# pause between downloading
+# (I suggest somewhere around a day for a rolling archive)
+sleep_time=$((60*60*24))
+
+# id of channel/user to download
 # Nitori Kappashiro (old): UCkf_rgLzKlZv2_V6c3mNN2A
 # Nitori Kappashiro (2016-03-07): UCg0YpckJRt9YmBfiQoF5VRA
 # GiIvaSunner (GilvaSunner parody account): UCUWqr4gShUpMjdG9T99j-PQ
-channel_id="$1"
+yt_id="$1"
 
 # directory to store videos in
-video_dir="$channel_id"
+video_dir="$yt_id"
 
 # directory to store log(s) in
 log_dir="$video_dir/logs"
 
 dl_archive_file="$video_dir/.yt-dl-archive"
-log_file="$log_dir/$(date +%F_%T)-youtube-dl.log"
 
 # youtube-dl default is 'bestvideo+bestaudio/best', but it could change later,
 # so we define our wanted format
 av_format="bestvideo+bestaudio/best"
 
-# form the channel URL
-channel_url="https://www.youtube.com/channel/$channel_id"
+# form the channel/user URL
+if [[ "$yt_type" == "channel" || -z "$yt_type" ]]; then
+    yt_url="https://www.youtube.com/channel/$yt_id"
+elif [[ "$yt_type" == "user" ]]; then
+    yt_url="ytuser:$yt_id"
+elif [[ "$yt_type" == "playlist" ]]; then
+    yt_url="https://www.youtube.com/playlist?list=$yt_id"
+fi
 
 if [[ ! -e "$video_dir" ]]; then
     _init_archive "$video_dir" "$log_dir"
 fi
 
-youtube-dl -i \
-           --rate-limit $dl_speed_limit \
-           --download-archive "$dl_archive_file" \
-           -o "$video_dir/%(upload_date)s-%(title)s-%(id)s.%(ext)s" \
-           --playlist-reverse \
-           -f "$av_format" \
-           --write-description \
-           --write-all-thumbnails \
-           --all-subs \
-           --write-info-json \
-           --write-annotations \
-           "$channel_url" \
-           | tee "$log_file"
+while :; do
+    log_file="$log_dir/$(date +%F_%T)-youtube-dl.log"
+    youtube-dl -i \
+               --rate-limit $dl_speed_limit \
+               --download-archive "$dl_archive_file" \
+               -o "$video_dir/%(upload_date)s-%(title)s-%(id)s.%(ext)s" \
+               --playlist-reverse \
+               -f "$av_format" \
+               --write-description \
+               --write-all-thumbnails \
+               --all-subs \
+               --write-info-json \
+               --write-annotations \
+               "$yt_url" \
+               | tee "$log_file"
+
+    # wait a bit then download again for new videos
+    _log ""
+    _log "Going to sleep for $sleep_time seconds..."
+    _log ""
+    sleep $sleep_time
+done
