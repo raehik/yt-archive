@@ -1,67 +1,79 @@
 #!/usr/bin/env bash
 #
-# Archive a YouTube channel/user, saving as much data & metadata as possible.
+# Archive a YouTube channel/user/playlist, saving as much data as possible.
+#
+# Requires: youtube-dl
 #
 
-VERBOSE=true
+_BASHPLATE_DIR="$HOME/.local/share/bashplate"
+source "$_BASHPLATE_DIR/bashplate.sh"
 
-_msg() {
-    echo "$1"
-}
+_VERBOSE=1
 
-_log() {
-    if [[ $VERBOSE ]]; then
-        _msg "$1"
-    fi
-}
-
-_error() {
-    _msg "$1"
-    if [[ $2 ]]; then
-        exit $2
-    fi
-}
-
-_init_archive() {
-    _msg "initialising new channel archive"
-    mkdir "$1" "$2"
-}
-
-while getopts ":cuph" opt; do
-    case $opt in
-        c) yt_type="channel" ;;
-        u) yt_type="user" ;;
-        p) yt_type="playlist" ;;
-        h) echo "TODO: usage" ; exit 0 ;;
-        *) _error "unknown option -$OPTARG" 1 ;;
-    esac
-done
-shift $((OPTIND-1))
-
-if [[ $# != 1 ]]; then
-    _error "error: expected exactly 1 argument" 1
-fi
-
-# speed limit
 dl_speed_limit="100K"
-
-# id of channel/user to download
-yt_id="$1"
-
-# directory to store videos in
-video_dir="$yt_id"
-
-# directory to store log(s) in
-log_dir="$video_dir/logs"
-
-dl_archive_file="$video_dir/.yt-dl-archive"
 
 # youtube-dl default is 'bestvideo+bestaudio/best', but it could change later,
 # so we define our wanted format
 av_format="bestvideo+bestaudio/best"
 
+_usage="\
+Usage: $_FILENAME [options] {-c|-u|-p} ID
+Archive an entire YouTube channel/user/playlist, including thumbnails,
+description, subtitles and annotations. Requires youtube-dl.
+
+You can download channels, users and playlists using youtube-dl (each has a
+slightly different URL pattern). One of -c, -u or -p is required.
+
+  Options:
+    -c, --channel   treat ID as a channel ID
+    -u, --user      treat ID as a username
+    -p, --playlist  treat ID as a playlist ID
+    -d, --dir       base download directory
+    -v, --verbose   be verbose
+    -h, --help      display this help text and exit\
+"
+
+base_dir="."
+while getopts_long :vhcupd: opt \
+    verbose 0 \
+    help 0 \
+    channel 0 \
+    user 0 \
+    playlist 0 \
+    dir 1 \
+    "" "$@"
+do
+    case "$opt" in
+        v|verbose) _VERBOSE=$(($_VERBOSE+1)) ;;
+        h|help) _print_usage 0 ;;
+        :) _err "$OPTLERR" ; _print_usage 1 ;;
+
+        c|channel) yt_type="channel" ;;
+        u|user) yt_type="user" ;;
+        p|playlist) yt_type="playlist" ;;
+        d|dir) base_dir="$OPTLARG" ;;
+    esac
+done
+shift $((OPTLIND-1))
+
+if [[ $# != 1 ]]; then
+    _err "expected exactly 1 argument (got $#)" 1
+fi
+
+# id of channel/user to download
+yt_id="$1"
+
+# directory to store videos in
+video_dir="$base_dir/$yt_id"
+
+# directory to store log(s) in
+log_dir="$video_dir/logs"
+
+dl_archive_file="$video_dir/.yt-dl-archive"
+log_file="$log_dir/$(date +%F_%T)-youtube-dl.log"
+
 # form the channel/user URL
-if [[ "$yt_type" == "channel" || -z "$yt_type" ]]; then
+if [[ "$yt_type" == "channel" ]]; then
     yt_url="https://www.youtube.com/channel/$yt_id"
 elif [[ "$yt_type" == "user" ]]; then
     yt_url="ytuser:$yt_id"
@@ -69,11 +81,9 @@ elif [[ "$yt_type" == "playlist" ]]; then
     yt_url="https://www.youtube.com/playlist?list=$yt_id"
 fi
 
-if [[ ! -e "$video_dir" ]]; then
-    _init_archive "$video_dir" "$log_dir"
-fi
+# make dirs if missing, exit successfully regardless
+mkdir -p "$video_dir" "$log_dir"
 
-log_file="$log_dir/$(date +%F_%T)-youtube-dl.log"
 youtube-dl -i \
            --rate-limit $dl_speed_limit \
            --download-archive "$dl_archive_file" \
