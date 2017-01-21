@@ -45,14 +45,7 @@ fi
 # speed limit
 dl_speed_limit="100K"
 
-# pause between downloading
-# (I suggest somewhere around a day for a rolling archive)
-sleep_time=$((60*60*24))
-
 # id of channel/user to download
-# Nitori Kappashiro (old): UCkf_rgLzKlZv2_V6c3mNN2A
-# Nitori Kappashiro (2016-03-07): UCg0YpckJRt9YmBfiQoF5VRA
-# GiIvaSunner (GilvaSunner parody account): UCUWqr4gShUpMjdG9T99j-PQ
 yt_id="$1"
 
 # directory to store videos in
@@ -80,25 +73,17 @@ if [[ ! -e "$video_dir" ]]; then
     _init_archive "$video_dir" "$log_dir"
 fi
 
-while :; do
-    log_file="$log_dir/$(date +%F_%T)-youtube-dl.log"
-    youtube-dl -i \
-               --rate-limit $dl_speed_limit \
-               --download-archive "$dl_archive_file" \
-               -o "$video_dir/%(upload_date)s-%(title)s-%(id)s.%(ext)s" \
-               --playlist-reverse \
-               -f "$av_format" \
-               --write-description \
-               --write-all-thumbnails \
-               --all-subs \
-               --write-info-json \
-               --write-annotations \
-               "$yt_url" \
-               | tee "$log_file"
-
-    # wait a bit then download again for new videos
-    _log ""
-    _log "Going to sleep for $sleep_time seconds..."
-    _log ""
-    sleep $sleep_time
-done
+log_file="$log_dir/$(date +%F_%T)-youtube-dl.log"
+youtube-dl -i \
+           --rate-limit $dl_speed_limit \
+           --download-archive "$dl_archive_file" \
+           -o "$video_dir/%(upload_date)s-%(title)s-%(id)s.%(ext)s" \
+           --playlist-reverse \
+           -f "$av_format" \
+           --write-description \
+           --write-all-thumbnails \
+           --all-subs \
+           --write-info-json \
+           --write-annotations \
+           "$yt_url" \
+           | tee "$log_file"
