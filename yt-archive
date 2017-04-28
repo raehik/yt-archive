@@ -85,7 +85,7 @@ fi
 mkdir -p "$video_dir" "$log_dir"
 
 youtube-dl -i \
-           --rate-limit $dl_speed_limit \
+           --limit-rate $dl_speed_limit \
            --download-archive "$dl_archive_file" \
            -o "$video_dir/%(upload_date)s-%(title)s-%(id)s.%(ext)s" \
            --playlist-reverse \
