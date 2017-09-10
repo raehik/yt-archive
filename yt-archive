@@ -17,29 +17,31 @@ dl_speed_limit="100K"
 av_format="bestvideo+bestaudio/best"
 
 _usage="\
-Usage: $_FILENAME [options] {-c|-u|-p} ID
+Usage: $_FILENAME [options] {-c|-u|-p|-s} ID
 Archive an entire YouTube channel/user/playlist, including thumbnails,
 description, subtitles and annotations. Requires youtube-dl.
 
 You can download channels, users and playlists using youtube-dl (each has a
-slightly different URL pattern). One of -c, -u or -p is required.
+slightly different URL pattern). One of -c, -u, -p or -s is required.
 
   Options:
     -c, --channel   treat ID as a channel ID
     -u, --user      treat ID as a username
-    -p, --playlist  treat ID as a playlist ID
+    -p, --playlist  treat ID as a playlist
+    -s, --single    treat ID as a single video
     -d, --dir       base download directory
     -v, --verbose   be verbose
     -h, --help      display this help text and exit\
 "
 
 base_dir="."
-while getopts_long :vhcupd: opt \
+while getopts_long :vhcupsd: opt \
     verbose 0 \
     help 0 \
     channel 0 \
     user 0 \
     playlist 0 \
+    single 0 \
     dir 1 \
     "" "$@"
 do
@@ -51,6 +53,7 @@ do
         c|channel) yt_type="channel" ;;
         u|user) yt_type="user" ;;
         p|playlist) yt_type="playlist" ;;
+        s|single) yt_type="single" ;;
         d|dir) base_dir="$OPTLARG" ;;
     esac
 done
@@ -79,6 +82,8 @@ elif [[ "$yt_type" == "user" ]]; then
     yt_url="ytuser:$yt_id"
 elif [[ "$yt_type" == "playlist" ]]; then
     yt_url="https://www.youtube.com/playlist?list=$yt_id"
+elif [[ "$yt_type" == "single" ]]; then
+    yt_url="https://www.youtube.com/watch?v=$yt_id"
 fi
 
 # make dirs if missing, exit successfully regardless
