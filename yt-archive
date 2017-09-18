@@ -78,7 +78,7 @@ fi
 yt_entity_id="$1"
 
 # set a default out dir according to the ID
-if [[ -z "" ]]; then
+if [[ -z "$out_dir" ]]; then
     out_dir="yt-archive_${yt_entity_type}_${yt_entity_id}"
 fi
 
