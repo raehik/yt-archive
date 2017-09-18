@@ -1,41 +1,47 @@
 #!/usr/bin/env bash
 #
-# Archive a YouTube channel/user/playlist, saving as much data as possible.
+# Archive a YouTube entity, saving as much data as possible.
 #
 # Requires: youtube-dl
+#
+# Note that the youtube-dl default video format code is
+# bestvideo+bestaudio/best, but we define it ourselves since it can't be trusted
+# not to change.
 #
 
 _BASHPLATE_DIR="$HOME/.local/share/bashplate"
 source "$_BASHPLATE_DIR/bashplate.sh"
 
-_VERBOSE=1
-
-dl_speed_limit="100K"
-
-# youtube-dl default is 'bestvideo+bestaudio/best', but it could change later,
-# so we define our wanted format
-av_format="bestvideo+bestaudio/best"
-
 _usage="\
 Usage: $_FILENAME [options] {-c|-u|-p|-s} ID
-Archive an entire YouTube channel/user/playlist, including thumbnails,
-description, subtitles and annotations. Requires youtube-dl.
+Fully archive a YouTube entity (channel, playlist, video). Downloads video,
+thumbnails, annotations, subtitles and description.
 
-You can download channels, users and playlists using youtube-dl (each has a
-slightly different URL pattern). One of -c, -u, -p or -s is required.
+Requires youtube-dl.
+
+You can download channels, users and playlists and single videos. One of -c, -u,
+-p or -s is required.
 
   Options:
     -c, --channel   treat ID as a channel ID
     -u, --user      treat ID as a username
     -p, --playlist  treat ID as a playlist
     -s, --single    treat ID as a single video
-    -d, --dir       base download directory
+    -d, --dir       directory to download everything into
+    -f, --format    youtube-dl video format code (check youtube-dl docs)
+    -l, --limit     youtube-dl maximum download speed (e.g. 100K, 1M)
     -v, --verbose   be verbose
     -h, --help      display this help text and exit\
 "
 
-base_dir="."
-while getopts_long :vhcupsd: opt \
+base_url="https://youtube.com"
+
+# defaults
+_VERBOSE=1           # force verbosity
+max_dl_speed="100K"  # very low limit in order not to disrupt others
+video_format_code="bestvideo+bestaudio/best"
+
+while getopts_long :vhcupsd:f:l: opt \
     verbose 0 \
     help 0 \
     channel 0 \
@@ -43,6 +49,8 @@ while getopts_long :vhcupsd: opt \
     playlist 0 \
     single 0 \
     dir 1 \
+    format 1 \
+    limit 1 \
     "" "$@"
 do
     case "$opt" in
@@ -50,11 +58,14 @@ do
         h|help) _print_usage 0 ;;
         :) _err "$OPTLERR" ; _print_usage 1 ;;
 
-        c|channel) yt_type="channel" ;;
-        u|user) yt_type="user" ;;
-        p|playlist) yt_type="playlist" ;;
-        s|single) yt_type="single" ;;
-        d|dir) base_dir="$OPTLARG" ;;
+        c|channel)  yt_entity_type="channel"  ;;
+        u|user)     yt_entity_type="user"     ;;
+        p|playlist) yt_entity_type="playlist" ;;
+        s|single)   yt_entity_type="single"   ;;
+
+        d|dir) out_dir="$OPTLARG" ;;
+        f|format) out_dir="$OPTLARG" ;;
+        l|limit) max_dl_speed="$OPTLARG" ;;
     esac
 done
 shift $((OPTLIND-1))
@@ -64,37 +75,41 @@ if [[ $# != 1 ]]; then
 fi
 
 # id of channel/user to download
-yt_id="$1"
+yt_entity_id="$1"
 
-# directory to store videos in
-video_dir="$base_dir/$yt_id"
+# set a default out dir according to the ID
+if [[ -z "" ]]; then
+    out_dir="yt-archive_${yt_entity_type}_${yt_entity_id}"
+fi
 
-# directory to store log(s) in
-log_dir="$video_dir/logs"
-
-dl_archive_file="$video_dir/.yt-dl-archive"
+log_dir="$out_dir/logs"
+dl_archive_file="$out_dir/.yt-dl-archive"
 log_file="$log_dir/$(date +%F_%T)-youtube-dl.log"
 
 # form the channel/user URL
-if [[ "$yt_type" == "channel" ]]; then
-    yt_url="https://www.youtube.com/channel/$yt_id"
-elif [[ "$yt_type" == "user" ]]; then
-    yt_url="ytuser:$yt_id"
-elif [[ "$yt_type" == "playlist" ]]; then
-    yt_url="https://www.youtube.com/playlist?list=$yt_id"
-elif [[ "$yt_type" == "single" ]]; then
-    yt_url="https://www.youtube.com/watch?v=$yt_id"
+if [[ "$yt_entity_type" == "channel" ]]; then
+    yt_url="$base_url/channel/$yt_entity_id"
+elif [[ "$yt_entity_type" == "user" ]]; then
+    yt_url="ytuser:$yt_entity_id"
+elif [[ "$yt_entity_type" == "playlist" ]]; then
+    yt_url="$base_url/playlist?list=$yt_entity_id"
+elif [[ "$yt_entity_type" == "single" ]]; then
+    yt_url="$base_url/watch?v=$yt_entity_id"
+elif [[ -z "$yt_entity_type" ]]; then
+    _err "unable to guess entity type for ID '$yt_entity_id': please specify manually" 2
+else
+    _err "YouTube entity type '$yt_entity_type' not supported" 2
 fi
 
-# make dirs if missing, exit successfully regardless
-mkdir -p "$video_dir" "$log_dir"
+# make dirs if missing (exit successfully regardless)
+mkdir -p "$out_dir" "$log_dir"
 
 youtube-dl -i \
-           --limit-rate $dl_speed_limit \
+           --limit-rate $max_dl_speed \
            --download-archive "$dl_archive_file" \
-           -o "$video_dir/%(upload_date)s-%(title)s-%(id)s.%(ext)s" \
+           -o "$out_dir/%(upload_date)s-%(title)s-%(id)s.%(ext)s" \
            --playlist-reverse \
-           -f "$av_format" \
+           -f "$video_format_code" \
            --write-description \
            --write-all-thumbnails \
            --all-subs \
