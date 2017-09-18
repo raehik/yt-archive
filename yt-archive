@@ -64,7 +64,7 @@ do
         s|single)   yt_entity_type="single"   ;;
 
         d|dir) out_dir="$OPTLARG" ;;
-        f|format) out_dir="$OPTLARG" ;;
+        f|format) video_format_code="$OPTLARG" ;;
         l|limit) max_dl_speed="$OPTLARG" ;;
     esac
 done
